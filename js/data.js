@@ -251,3 +251,179 @@ function getAvailableClothing(trip) {
 function getClothingById(trip, clothingId) {
   return trip.clothing.find(c => c.id === clothingId) || null;
 }
+
+// ─── Duplication & Import/Export Data Operations ─────────────────────────────
+
+/**
+ * Duplicate a trip: copies itinerary only, empty closet and assignments.
+ * Generates unique non-conflicting trip name and unique item IDs.
+ */
+function duplicateTrip(state, tripId) {
+  const source = getTripById(state, tripId);
+  if (!source) return null;
+
+  // Generate unique name: "Kerala Trip Copy", "Kerala Trip Copy 2", etc.
+  let newName = `${source.name} Copy`;
+  const existingNames = new Set(state.trips.map(t => t.name));
+  if (existingNames.has(newName)) {
+    let count = 2;
+    while (existingNames.has(`${source.name} Copy ${count}`)) {
+      count++;
+    }
+    newName = `${source.name} Copy ${count}`;
+  }
+
+  // Copy itinerary with new unique IDs
+  const newItinerary = (source.itinerary || []).map(item => ({
+    id: genId(),
+    day: item.day,
+    time: item.time,
+    occasion: item.occasion
+  }));
+
+  const newTrip = {
+    id: genId(),
+    name: newName,
+    itinerary: newItinerary,
+    clothing: [],
+    assignments: {}
+  };
+
+  state.trips.push(newTrip);
+  return newTrip;
+}
+
+/**
+ * Validate backup JSON data format.
+ * Returns { valid: true/false, rawTrips: [...], tripCount, itinCount, clothingCount }
+ */
+function validateBackupData(parsedData) {
+  if (!parsedData || typeof parsedData !== 'object') {
+    return { valid: false };
+  }
+
+  let rawTrips = null;
+  if (Array.isArray(parsedData)) {
+    rawTrips = parsedData;
+  } else if (Array.isArray(parsedData.trips)) {
+    rawTrips = parsedData.trips;
+  } else {
+    return { valid: false };
+  }
+
+  let itinCount = 0;
+  let clothingCount = 0;
+
+  for (const trip of rawTrips) {
+    if (!trip || typeof trip !== 'object') return { valid: false };
+    if (typeof trip.name !== 'string' || !trip.name.trim()) return { valid: false };
+
+    if (trip.itinerary !== undefined && !Array.isArray(trip.itinerary)) return { valid: false };
+    const itinerary = trip.itinerary || [];
+    for (const itin of itinerary) {
+      if (!itin || typeof itin !== 'object') return { valid: false };
+      if (typeof itin.day !== 'number' && isNaN(parseInt(itin.day, 10))) return { valid: false };
+      if (typeof itin.time !== 'string' || typeof itin.occasion !== 'string') return { valid: false };
+    }
+    itinCount += itinerary.length;
+
+    if (trip.clothing !== undefined && !Array.isArray(trip.clothing)) return { valid: false };
+    const clothing = trip.clothing || [];
+    for (const c of clothing) {
+      if (!c || typeof c !== 'object') return { valid: false };
+      if (typeof c.name !== 'string' || typeof c.category !== 'string') return { valid: false };
+    }
+    clothingCount += clothing.length;
+
+    if (trip.assignments !== undefined && (typeof trip.assignments !== 'object' || trip.assignments === null || Array.isArray(trip.assignments))) {
+      return { valid: false };
+    }
+  }
+
+  return {
+    valid: true,
+    rawTrips,
+    tripCount: rawTrips.length,
+    itinCount,
+    clothingCount
+  };
+}
+
+/**
+ * Import trips into state with collision safety.
+ * Re-maps trip IDs, itinerary item IDs, clothing instance IDs, and assignments.
+ */
+function importTrips(state, rawTrips) {
+  const importedTrips = [];
+  const existingNames = new Set(state.trips.map(t => t.name));
+
+  for (const rawTrip of rawTrips) {
+    let name = rawTrip.name.trim();
+    if (existingNames.has(name)) {
+      let candidate = `${name} (Imported)`;
+      let count = 2;
+      while (existingNames.has(candidate)) {
+        candidate = `${name} (Imported ${count})`;
+        count++;
+      }
+      name = candidate;
+    }
+    existingNames.add(name);
+
+    const itinIdMap = {};
+    const clothingIdMap = {};
+
+    const newItinerary = (rawTrip.itinerary || []).map(item => {
+      const newId = genId();
+      if (item.id) itinIdMap[item.id] = newId;
+      return {
+        id: newId,
+        day: parseInt(item.day, 10) || 1,
+        time: item.time || '08:00',
+        occasion: (item.occasion || '').trim()
+      };
+    });
+
+    const newClothing = (rawTrip.clothing || []).map(c => {
+      const newId = genId();
+      if (c.id) clothingIdMap[c.id] = newId;
+      return {
+        id: newId,
+        name: (c.name || '').trim(),
+        category: c.category || 'tops',
+        type: c.type || 'shirt',
+        color: c.color || '#000000'
+      };
+    });
+
+    const newAssignments = {};
+    if (rawTrip.assignments && typeof rawTrip.assignments === 'object') {
+      for (const [oldItinId, oldClothingIds] of Object.entries(rawTrip.assignments)) {
+        const targetItinId = itinIdMap[oldItinId];
+        if (targetItinId && Array.isArray(oldClothingIds)) {
+          const mappedClothingIds = oldClothingIds
+            .map(oldCId => clothingIdMap[oldCId])
+            .filter(Boolean);
+          if (mappedClothingIds.length > 0) {
+            newAssignments[targetItinId] = mappedClothingIds;
+          }
+        }
+      }
+    }
+
+    const newTrip = {
+      id: genId(),
+      name,
+      itinerary: newItinerary,
+      clothing: newClothing,
+      assignments: newAssignments
+    };
+
+    sortItinerary(newTrip);
+    state.trips.push(newTrip);
+    importedTrips.push(newTrip);
+  }
+
+  return importedTrips;
+}
+

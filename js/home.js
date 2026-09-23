@@ -24,18 +24,50 @@ function renderHome() {
 
       <div id="trips-grid" class="trips-grid"></div>
 
-      <button class="btn btn--primary btn--lg home-new-btn" id="btn-new-trip">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-        </svg>
-        New Trip
-      </button>
+      <div class="home-actions">
+        <button class="btn btn--primary btn--lg home-new-btn" id="btn-new-trip">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          New Trip
+        </button>
+        <button class="btn btn--ghost btn--lg" id="btn-import-trips">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Import
+        </button>
+        <button class="btn btn--ghost btn--lg" id="btn-export-trips">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Export
+        </button>
+        <input type="file" id="import-file-input" accept=".json" hidden />
+      </div>
     </main>
   `;
 
   renderTripCards();
 
   document.getElementById('btn-new-trip').addEventListener('click', () => openNewTripModal());
+  document.getElementById('btn-import-trips').addEventListener('click', () => {
+    const fileInput = document.getElementById('import-file-input');
+    fileInput.value = '';
+    fileInput.click();
+  });
+  document.getElementById('btn-export-trips').addEventListener('click', () => exportAllTrips());
+
+  document.getElementById('import-file-input').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (file) {
+      handleImportFileSelect(file);
+    }
+  });
 }
 
 /**
@@ -79,6 +111,7 @@ function renderTripCards() {
         </div>
         <div class="trip-card__actions">
           <button class="btn btn--primary btn--sm trip-open-btn" data-trip-id="${trip.id}">Open</button>
+          <button class="btn btn--ghost btn--sm trip-duplicate-btn" data-trip-id="${trip.id}">Duplicate</button>
           <button class="btn btn--ghost btn--icon trip-rename-btn" data-trip-id="${trip.id}" title="Rename trip">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -102,6 +135,20 @@ function renderTripCards() {
       e.stopPropagation();
       const id = btn.dataset.tripId;
       openTrip(id);
+    });
+  });
+
+  // Duplicate
+  grid.querySelectorAll('.trip-duplicate-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = btn.dataset.tripId;
+      const duplicated = duplicateTrip(state, id);
+      if (duplicated) {
+        saveState(state);
+        renderTripCards();
+        showToast('Trip duplicated successfully.', 'success');
+      }
     });
   });
 
@@ -213,6 +260,79 @@ function confirmDeleteTrip(tripId) {
   });
 }
 
+// ── Export & Import Operations ────────────────────────────────────────────────
+
+function exportAllTrips() {
+  const exportData = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    trips: state.trips
+  };
+  const jsonStr = JSON.stringify(exportData, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'cloth-itinerary-backup.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function handleImportFileSelect(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    let parsed = null;
+    try {
+      parsed = JSON.parse(e.target.result);
+    } catch (err) {
+      showInvalidImportModal();
+      return;
+    }
+
+    const validation = validateBackupData(parsed);
+    if (!validation.valid) {
+      showInvalidImportModal();
+      return;
+    }
+
+    openModal({
+      title: 'Import Trips',
+      body: `
+        <p class="modal-confirm-text">This backup contains:</p>
+        <ul class="import-summary-list">
+          <li><strong>${validation.tripCount}</strong> trip${validation.tripCount !== 1 ? 's' : ''}</li>
+          <li><strong>${validation.itinCount}</strong> itinerary item${validation.itinCount !== 1 ? 's' : ''}</li>
+          <li><strong>${validation.clothingCount}</strong> clothing item${validation.clothingCount !== 1 ? 's' : ''}</li>
+        </ul>
+        <p class="modal-confirm-text">Import these trips?</p>
+      `,
+      primaryLabel: 'Import',
+      onPrimary: () => {
+        const imported = importTrips(state, validation.rawTrips);
+        saveState(state);
+        renderTripCards();
+        const count = imported.length;
+        showToast(`${count} trip${count !== 1 ? 's' : ''} imported successfully.`, 'success');
+        return true;
+      }
+    });
+  };
+  reader.readAsText(file);
+}
+
+function showInvalidImportModal() {
+  openModal({
+    title: 'Import Failed',
+    body: `
+      <p class="modal-confirm-text" style="font-weight: 600; color: var(--danger);">Invalid backup file.</p>
+      <p class="modal-confirm-text" style="margin-top: 8px;">No changes were made to your trips.</p>
+    `,
+    primaryLabel: null
+  });
+}
+
 /**
  * Navigate to the trip planner page for the given tripId.
  */
@@ -221,3 +341,4 @@ function openTrip(tripId) {
   saveState(state);
   showTripPage();
 }
+

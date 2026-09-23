@@ -523,12 +523,23 @@ svg {
 .trip-card__actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
-.home-new-btn {
+.home-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
   margin-top: 8px;
 }
+
+.home-new-btn {
+  margin-top: 0;
+}
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
    TRIP PAGE — TOP HEADER
@@ -1306,3 +1317,66 @@ svg {
   .trip-header { padding: 0 12px; gap: 8px; }
   .summary-stat__value { font-size: 1rem; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOAST NOTIFICATIONS & IMPORT STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--dark-1);
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: auto;
+  animation: toastIn 0.22s ease;
+  border-left: 4px solid var(--violet);
+}
+
+.toast--error {
+  border-left-color: var(--danger);
+}
+
+.toast--success {
+  border-left-color: var(--success);
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes toastOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(12px); }
+}
+
+.import-summary-list {
+  list-style: none;
+  padding: 12px 16px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9375rem;
+  color: var(--dark-2);
+  margin: 8px 0;
+}
+
