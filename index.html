@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cloth Itinerary — Trip Outfit Planner</title>
+  <meta name="description" content="Plan what to wear for every occasion during your trip. A simple, offline cloth itinerary planner." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       PAGE: HOME
+  ════════════════════════════════════════════════════════════════ -->
+  <div id="page-home" hidden></div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       PAGE: TRIP PLANNER
+  ════════════════════════════════════════════════════════════════ -->
+  <div id="page-trip" hidden>
+    <!-- Top header -->
+    <header class="trip-header">
+      <button class="btn btn--ghost btn--sm trip-back-btn" id="btn-home">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        Home
+      </button>
+      <h1 class="trip-header__name" id="trip-page-name"></h1>
+      <div class="trip-header__spacer"></div>
+    </header>
+
+    <!-- Packing summary -->
+    <div id="packing-summary" class="packing-summary"></div>
+
+    <!-- Three-column layout -->
+    <div class="trip-columns">
+      <!-- Left: Itinerary -->
+      <aside class="trip-col trip-col--left" id="col-itinerary"></aside>
+
+      <!-- Center: Outfits -->
+      <main class="trip-col trip-col--center" id="col-outfits"></main>
+
+      <!-- Right: Closet -->
+      <aside class="trip-col trip-col--right" id="col-closet"></aside>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       MODAL OVERLAY (shared)
+  ════════════════════════════════════════════════════════════════ -->
+  <div id="modal-overlay" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div id="modal" class="modal">
+      <div id="modal-header" class="modal-header"></div>
+      <div id="modal-body" class="modal-body"></div>
+      <div id="modal-footer" class="modal-footer"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SCRIPTS — load in dependency order
+  ════════════════════════════════════════════════════════════════ -->
+  <script src="js/storage.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/svgIcons.js"></script>
+  <script src="js/summary.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/home.js"></script>
+  <script src="js/closet.js"></script>
+  <script src="js/itinerary.js"></script>
+  <script src="js/outfits.js"></script>
+
+</body>
+</html>
