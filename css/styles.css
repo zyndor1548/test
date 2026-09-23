@@ -1161,15 +1161,22 @@ svg {
   min-width: 0;
 }
 
+.popup-clothing-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .popup-wash-btn {
   color: var(--violet);
   border-color: var(--violet-border);
-  flex-shrink: 0;
 }
 .popup-wash-btn:hover {
   background: var(--violet-xlight);
   border-color: var(--violet);
 }
+
 
 .popup-empty {
   text-align: center;

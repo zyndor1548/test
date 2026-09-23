@@ -207,6 +207,14 @@ function assignClothing(trip, clothingId, itineraryId) {
  * Restores availability in Closet for non-footwear items.
  */
 function unassignClothing(trip, clothingId, itineraryId) {
+  return removeClothingFromOccasion(trip, clothingId, itineraryId);
+}
+
+/**
+ * Remove a clothing item from a specific occasion.
+ * Restores availability in Closet for non-footwear items.
+ */
+function removeClothingFromOccasion(trip, clothingId, itineraryId) {
   if (itineraryId && trip.assignments[itineraryId]) {
     const idx = trip.assignments[itineraryId].indexOf(clothingId);
     if (idx !== -1) {
@@ -227,6 +235,7 @@ function unassignClothing(trip, clothingId, itineraryId) {
   }
   return true;
 }
+
 
 /**
  * Move a clothing item from one occasion to another.

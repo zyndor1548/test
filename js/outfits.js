@@ -184,7 +184,10 @@ function openOutfitPopup(trip, itineraryId) {
           <div class="popup-clothing-item">
             <div class="popup-clothing-icon">${getClothingIcon(cloth.type, cloth.color)}</div>
             <span class="popup-clothing-name">${escHtml(cloth.name)}</span>
-            <button class="btn btn--ghost btn--sm popup-wash-btn" data-clothing-id="${cid}">Wash</button>
+            <div class="popup-clothing-actions">
+              <button class="btn btn--ghost btn--sm popup-wash-btn" data-clothing-id="${cid}">Wash</button>
+              <button class="btn btn--ghost btn--sm btn--danger popup-remove-btn" data-clothing-id="${cid}">Remove</button>
+            </div>
           </div>
         `;
       }).join('');
@@ -203,6 +206,16 @@ function openOutfitPopup(trip, itineraryId) {
           renderAll();
         });
       });
+
+      document.querySelectorAll('.popup-remove-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          removeClothingFromOccasion(trip, btn.dataset.clothingId, itineraryId);
+          saveState(state);
+          closeModal();
+          renderAll();
+        });
+      });
     }
   });
 }
+
