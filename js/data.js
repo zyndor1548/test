@@ -133,7 +133,8 @@ function addClothing(trip, { name, category, type, color, quantity = 1 }) {
       name: name.trim(),
       category,
       type,
-      color
+      color,
+      isAvailable: true
     };
     trip.clothing.push(item);
     instances.push(item);
@@ -185,49 +186,77 @@ function getClothingAssignedTo(trip, clothingId) {
 
 /**
  * Assign a clothing item to an itinerary occasion.
- * Removes from any previous assignment first.
+ * Footwear remains available in Closet. Non-footwear becomes unavailable in Closet until washed.
  */
 function assignClothing(trip, clothingId, itineraryId) {
-  // Remove from any current assignment
-  unassignClothing(trip, clothingId);
   if (!trip.assignments[itineraryId]) {
     trip.assignments[itineraryId] = [];
   }
   if (!trip.assignments[itineraryId].includes(clothingId)) {
     trip.assignments[itineraryId].push(clothingId);
   }
+
+  const item = getClothingById(trip, clothingId);
+  if (item && item.category !== 'footwear') {
+    item.isAvailable = false;
+  }
 }
 
 /**
- * Unassign a clothing item from wherever it currently is.
- * Returns it to the closet (available state).
+ * Unassign a clothing item from a specific occasion.
+ * Restores availability in Closet for non-footwear items.
  */
-function unassignClothing(trip, clothingId) {
-  for (const itinId of Object.keys(trip.assignments)) {
-    const arr = trip.assignments[itinId];
-    const idx = arr.indexOf(clothingId);
+function unassignClothing(trip, clothingId, itineraryId) {
+  if (itineraryId && trip.assignments[itineraryId]) {
+    const idx = trip.assignments[itineraryId].indexOf(clothingId);
     if (idx !== -1) {
-      arr.splice(idx, 1);
-      return itinId; // return where it was
+      trip.assignments[itineraryId].splice(idx, 1);
+    }
+  } else {
+    // Legacy fallback: remove from all assignments
+    for (const itinId of Object.keys(trip.assignments)) {
+      const arr = trip.assignments[itinId];
+      const idx = arr.indexOf(clothingId);
+      if (idx !== -1) arr.splice(idx, 1);
     }
   }
-  return null;
+
+  const item = getClothingById(trip, clothingId);
+  if (item) {
+    item.isAvailable = true;
+  }
+  return true;
 }
 
 /**
  * Move a clothing item from one occasion to another.
- * Equivalent to unassign + assign.
+ * Removes assignment from source occasion and assigns to target occasion.
  */
-function moveClothing(trip, clothingId, targetItineraryId) {
-  assignClothing(trip, clothingId, targetItineraryId);
+function moveClothing(trip, clothingId, fromItineraryId, toItineraryId) {
+  if (fromItineraryId && trip.assignments[fromItineraryId]) {
+    const idx = trip.assignments[fromItineraryId].indexOf(clothingId);
+    if (idx !== -1) {
+      trip.assignments[fromItineraryId].splice(idx, 1);
+    }
+  }
+  if (!trip.assignments[toItineraryId]) {
+    trip.assignments[toItineraryId] = [];
+  }
+  if (!trip.assignments[toItineraryId].includes(clothingId)) {
+    trip.assignments[toItineraryId].push(clothingId);
+  }
 }
 
 /**
- * "Wash" — remove clothing from an occasion, return to closet.
- * Alias for unassignClothing, kept semantically named.
+ * "Wash" — mark clothing as clean/available for reuse in the Closet
+ * while keeping the existing center-column occasion assignment intact.
  */
 function washClothing(trip, clothingId) {
-  return unassignClothing(trip, clothingId);
+  const item = getClothingById(trip, clothingId);
+  if (item) {
+    item.isAvailable = true;
+  }
+  return true;
 }
 
 /**
@@ -238,12 +267,18 @@ function getAssignedClothing(trip, itineraryId) {
 }
 
 /**
- * Get all clothing ids that are NOT assigned to any occasion.
+ * Get all clothing objects currently available in the Closet.
+ * Footwear is ALWAYS available. Non-footwear is available when isAvailable === true.
  */
 function getAvailableClothing(trip) {
-  const allAssigned = new Set(Object.values(trip.assignments).flat());
-  return trip.clothing.filter(c => !allAssigned.has(c.id));
+  return trip.clothing.filter(c => {
+    if (c.category === 'footwear') return true;
+    if (c.isAvailable !== undefined) return c.isAvailable;
+    const assignedSet = new Set(Object.values(trip.assignments).flat());
+    return !assignedSet.has(c.id);
+  });
 }
+
 
 /**
  * Get clothing object by id.
@@ -392,9 +427,11 @@ function importTrips(state, rawTrips) {
         name: (c.name || '').trim(),
         category: c.category || 'tops',
         type: c.type || 'shirt',
-        color: c.color || '#000000'
+        color: c.color || '#000000',
+        isAvailable: c.isAvailable !== undefined ? c.isAvailable : true
       };
     });
+
 
     const newAssignments = {};
     if (rawTrip.assignments && typeof rawTrip.assignments === 'object') {

@@ -8,22 +8,27 @@
 function computeSummary(trip) {
   const occasions = trip.itinerary.length;
   let planned = 0;
-  let assigned = 0;
 
   for (const item of trip.itinerary) {
     const ids = trip.assignments[item.id] || [];
     if (ids.length > 0) {
       planned++;
-      assigned += ids.length;
     }
   }
 
   const empty = occasions - planned;
   const totalClothes = trip.clothing.length;
-  const available = totalClothes - assigned;
+
+  // Unique physical clothing items assigned across occasions
+  const assignedSet = new Set(Object.values(trip.assignments).flat());
+  const assigned = assignedSet.size;
+
+  // Available clothing items in closet
+  const available = getAvailableClothing(trip).length;
 
   return { occasions, planned, empty, totalClothes, assigned, available };
 }
+
 
 /**
  * Re-render the packing summary bar with fresh data from the trip.
